@@ -1,2 +1,112 @@
-# Python-Genetic-Image-Generation
+# Python Genetic Image Generation
 
+Generate stylized reconstructions of an input image with a quadtree-based genetic algorithm.
+
+The program evolves images tile-by-tile in parallel and writes several ranked outputs (`output_0.jpg` to `output_4.jpg`).
+
+## How It Works
+
+1. The input image is resized to the working resolution.
+2. The image is split into `2^subdivision_level` tiles per axis.
+3. Each tile evolves in parallel with a genetic loop:
+   - mutate colors for selected quads
+   - evaluate fitness against the source tile
+   - apply crossover and quad subdivision
+4. Evolved tiles are merged back into final full-size images.
+
+## Repository Structure
+
+- `image_generation/` - source code
+- `input/` - input images
+- `output/` - generated outputs (cleaned each run)
+- `examples/` - README demo assets (before/after)
+
+## Requirements
+
+- Python 3.12+
+- pip
+
+Install dependencies:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+## Run Instructions
+
+From the repository root:
+
+```bash
+python -m image_generation -- -i munir.jpg
+```
+
+This uses defaults for all other arguments and expects `input/munir.jpg`.
+
+Show help:
+
+```bash
+python -m image_generation -- --help
+```
+
+## Common Examples
+
+Default run:
+
+```bash
+python -m image_generation -- -i munir.jpg
+```
+
+High quality profile (targeting <= 2 minutes on this project setup):
+
+```bash
+python -m image_generation -- -i munir.jpg -o output -g 28 -ps 85 -c 36 -cg 20 -wr 512 -or 512 -sl 2 -s 0 -st false
+```
+
+Enable statistics and chart:
+
+```bash
+python -m image_generation -- -i munir.jpg -st true
+```
+
+## CLI Arguments
+
+| Description | Argument | Default |
+|---|---|---|
+| Input filename | `-i`, `--input` | `input` |
+| Output folder | `-o`, `--output` | `output` |
+| Generations | `-g`, `--generations` | `40` |
+| Population size | `-ps`, `--population-size` | `120` |
+| Crossover size | `-c`, `--crossover` | `50` |
+| Color generations | `-cg`, `--color-generations` | `24` |
+| Working resolution | `-wr`, `--working-resolution` | `512` |
+| Output resolution | `-or`, `--output-resolution` | `512` |
+| Subdivision level | `-sl`, `--subdivision-level` | `3` |
+| Random seed | `-s`, `--seed` | `0` |
+| Statistics output | `-st`, `--statistics` | `false` |
+| Help | `-h`, `--help` | n/a |
+
+## Before / After Example
+
+Input (`munir.jpg`):
+
+![Before](examples/before_munir.jpg)
+
+Generated output (`output_0.jpg` from the <= 2 min profile):
+
+![After](examples/after_munir.jpg)
+
+## Output Files
+
+Each run writes:
+
+- `output/output_0.jpg` ... `output/output_4.jpg` - ranked image outputs
+- `output/run_data.txt` - runtime and run configuration
+- `output/evo_data.txt` - evolution settings
+- `output/stat_data.txt` - tile/generation statistics
+- `output/graph.png` - statistics chart when `-st true`
+
+## Notes
+
+- The `output/` folder is cleaned at the start of every run.
+- If you pass a bare filename like `munir.jpg`, the program resolves it as `input/munir.jpg`.
+- You can pass a direct path too, for example `-i ../somewhere/image.jpg`.
