@@ -52,6 +52,7 @@ class QuadTreeImage:
         if original.height == 1 or original.width == 1:
             return False
 
+        # Reuse the current slot for one child and append the remaining three.
         self.quads[index] = self.get_quadrant(original, quadrant=0)
         result_indexes[0] = index
 

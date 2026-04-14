@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 import time
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence
 
 from .visualization import plot_fitness_evolution
 
@@ -126,7 +126,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_OUTPUT_SIZE,
         help="final output resolution",
     )
-    parser.add_argument("-g", "--generations", type=int, default=DEFAULT_GENERATIONS, help="generation count")
+    parser.add_argument(
+        "-g",
+        "--generations",
+        type=int,
+        default=DEFAULT_GENERATIONS,
+        help="generation count",
+    )
     parser.add_argument(
         "-ps",
         "--population-size",
@@ -134,7 +140,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_POPULATION_SIZE,
         help="population size per generation",
     )
-    parser.add_argument("-c", "--crossover", type=int, default=DEFAULT_CROSSOVER, help="crossover size")
+    parser.add_argument(
+        "-c",
+        "--crossover",
+        type=int,
+        default=DEFAULT_CROSSOVER,
+        help="crossover size",
+    )
     parser.add_argument(
         "-cg",
         "--color-generations",
@@ -156,7 +168,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_SUBDIVISION_LEVEL,
         help="tile subdivision level (2^level per axis)",
     )
-    parser.add_argument("-s", "--seed", type=int, default=DEFAULT_RANDOM_SEED, help="random seed")
+    parser.add_argument(
+        "-s",
+        "--seed",
+        type=int,
+        default=DEFAULT_RANDOM_SEED,
+        help="random seed",
+    )
     parser.add_argument(
         "-st",
         "--statistics",
@@ -267,19 +285,22 @@ def _save_animation(
         resized_frames.append(resized)
         image.close()
 
-    first_frame = cast(Any, resized_frames[0])
+    # GIF uses frame duration in milliseconds, while the CLI uses FPS.
+    frame_duration_ms = max(1, int(round(1000 / animation_speed)))
+
+    first_frame = resized_frames[0]
     other_frames = resized_frames[1:]
     first_frame.save(
         output_folder / "output.gif",
         format="GIF",
         save_all=True,
         append_images=other_frames,
-        duration=max(1, int(round(1000 / animation_speed))),
+        duration=frame_duration_ms,
         loop=0,
     )
 
     for frame in resized_frames:
-        cast(Any, frame).close()
+        frame.close()
 
 
 def _serialize_statistics(
@@ -309,7 +330,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             missing_module = getattr(exc, "name", "dependency")
             print(
                 f"Error: Missing dependency '{missing_module}'. "
-                "Install requirements in PythonRewrite before running."
+                "Install dependencies from requirements.txt and run again."
             )
             return 1
 

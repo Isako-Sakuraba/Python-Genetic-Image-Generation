@@ -6,7 +6,7 @@ Color = tuple[int, int, int]
 
 
 def next_color(rng: random.Random) -> Color:
-    """Generate next random RGB color using C# channel sampling order."""
+    """Generate an RGB color with a fixed channel sampling order."""
     red = rng.randrange(0, 256)
     blue = rng.randrange(0, 256)
     green = rng.randrange(0, 256)
@@ -14,5 +14,5 @@ def next_color(rng: random.Random) -> Color:
 
 
 def remap(clamped: float, start: float, end: float) -> float:
-    """Remap 0..1 value into a custom range."""
+    """Map a normalized value from 0..1 into [start, end]."""
     return start + clamped * (end - start)

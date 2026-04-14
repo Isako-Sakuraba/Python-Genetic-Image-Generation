@@ -5,7 +5,7 @@ import colorsys
 Color = tuple[int, int, int]
 
 
-def _clamp01(value: float) -> float:
+def _clamp_01(value: float) -> float:
     return max(0.0, min(1.0, value))
 
 
@@ -15,23 +15,23 @@ def _to_unit_rgb(color: Color) -> tuple[float, float, float]:
 
 def _from_unit_rgb(color: tuple[float, float, float]) -> Color:
     return (
-        int(_clamp01(color[0]) * 255.0),
-        int(_clamp01(color[1]) * 255.0),
-        int(_clamp01(color[2]) * 255.0),
+        int(_clamp_01(color[0]) * 255.0),
+        int(_clamp_01(color[1]) * 255.0),
+        int(_clamp_01(color[2]) * 255.0),
     )
 
 
 def adjust_brightness(color: Color, multiplier: float) -> Color:
     red, green, blue = _to_unit_rgb(color)
     hue, saturation, value = colorsys.rgb_to_hsv(red, green, blue)
-    adjusted = (hue, saturation, _clamp01(value * multiplier))
+    adjusted = (hue, saturation, _clamp_01(value * multiplier))
     return _from_unit_rgb(colorsys.hsv_to_rgb(*adjusted))
 
 
 def adjust_saturation(color: Color, multiplier: float) -> Color:
     red, green, blue = _to_unit_rgb(color)
     hue, saturation, value = colorsys.rgb_to_hsv(red, green, blue)
-    adjusted = (hue, _clamp01(saturation * multiplier), value)
+    adjusted = (hue, _clamp_01(saturation * multiplier), value)
     return _from_unit_rgb(colorsys.hsv_to_rgb(*adjusted))
 
 
@@ -45,7 +45,7 @@ def shift_hue(color: Color, degrees: float) -> Color:
 def adjust_lightness(color: Color, multiplier: float) -> Color:
     red, green, blue = _to_unit_rgb(color)
     hue, lightness, saturation = colorsys.rgb_to_hls(red, green, blue)
-    adjusted = (hue, _clamp01(lightness * multiplier), saturation)
+    adjusted = (hue, _clamp_01(lightness * multiplier), saturation)
     return _from_unit_rgb(colorsys.hls_to_rgb(*adjusted))
 
 
@@ -58,7 +58,7 @@ def invert(color: Color) -> Color:
 
 
 def blend(color_1: Color, color_2: Color, ratio: float) -> Color:
-    ratio = _clamp01(ratio)
+    ratio = _clamp_01(ratio)
     return (
         int(color_1[0] + (color_2[0] - color_1[0]) * ratio),
         int(color_1[1] + (color_2[1] - color_1[1]) * ratio),

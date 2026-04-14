@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from _thread import LockType
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-import math
 import os
 import random
 import threading
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 import numpy as np
 
@@ -71,7 +69,13 @@ class TileEvolutionResult:
 
 
 class Evolution:
-    def __init__(self, original: np.ndarray, data: EvolutionData, seed: int = 0, id: int = 0) -> None:
+    def __init__(
+        self,
+        original: np.ndarray,
+        data: EvolutionData,
+        seed: int = 0,
+        id: int = 0,
+    ) -> None:
         self.id = id
         self.original = original
         self.data = data
@@ -173,6 +177,7 @@ class Evolution:
         top_count: int,
         capture_history: bool,
     ) -> tuple[list[np.ndarray], list[np.ndarray] | None]:
+        # Keep the blank starting frame so GIF playback shows the full progression.
         history: list[np.ndarray] | None = [] if capture_history else None
         if history is not None:
             history.append(self.elite_individual.image.copy())
@@ -192,7 +197,10 @@ class Evolution:
         images, _ = self._evolve_internal(top_count, capture_history=False)
         return images
 
-    def evolve_with_history(self, top_count: int = 5) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    def evolve_with_history(
+        self,
+        top_count: int = 5,
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         images, history = self._evolve_internal(top_count, capture_history=True)
         return images, history or []
 
@@ -228,8 +236,18 @@ class Evolution:
 
         return images
 
-    def evolve_async(self, quantization: int, top_count: int = 5, show_progress: bool = True) -> list[np.ndarray]:
-        outputs, _ = self._evolve_async_internal(quantization, top_count, show_progress, capture_history=False)
+    def evolve_async(
+        self,
+        quantization: int,
+        top_count: int = 5,
+        show_progress: bool = True,
+    ) -> list[np.ndarray]:
+        outputs, _ = self._evolve_async_internal(
+            quantization,
+            top_count,
+            show_progress,
+            capture_history=False,
+        )
         return outputs
 
     def evolve_async_with_history(
@@ -238,7 +256,12 @@ class Evolution:
         top_count: int = 5,
         show_progress: bool = True,
     ) -> tuple[list[np.ndarray], list[np.ndarray]]:
-        return self._evolve_async_internal(quantization, top_count, show_progress, capture_history=True)
+        return self._evolve_async_internal(
+            quantization,
+            top_count,
+            show_progress,
+            capture_history=True,
+        )
 
     def _evolve_async_internal(
         self,
@@ -247,7 +270,7 @@ class Evolution:
         show_progress: bool,
         capture_history: bool,
     ) -> tuple[list[np.ndarray], list[np.ndarray]]:
-        tiles_x = int(math.pow(2, quantization))
+        tiles_x = 2 ** quantization
         tiles_y = tiles_x
         tile_width = self.original.shape[1] // tiles_x
         tile_height = self.original.shape[0] // tiles_y
@@ -264,14 +287,19 @@ class Evolution:
         for tile_y in range(tiles_y):
             for tile_x in range(tiles_x):
                 tile_id = tile_y * tiles_x + tile_x
-                rectangle = Rectangle(tile_x * tile_width, tile_y * tile_height, tile_width, tile_height)
+                rectangle = Rectangle(
+                    tile_x * tile_width,
+                    tile_y * tile_height,
+                    tile_width,
+                    tile_height,
+                )
                 tile = self.original[
                     rectangle.y : rectangle.y + rectangle.height,
                     rectangle.x : rectangle.x + rectangle.width,
                 ].copy()
                 tile_infos.append((tile_id, rectangle, tile))
 
-        progress_state: tuple[Any, dict[int, int], LockType] | None = None
+        progress_state: tuple[Any, dict[int, int], Any] | None = None
         results: dict[int, TileEvolutionResult]
 
         if rich_progress is not None and show_progress:
@@ -284,13 +312,26 @@ class Evolution:
                 transient=False,
             ) as progress:
                 task_ids = {
-                    tile_id: progress.add_task(f"Tile {tile_id + 1}", total=self.data.generations)
+                    tile_id: progress.add_task(
+                        f"Tile {tile_id + 1}",
+                        total=self.data.generations,
+                    )
                     for tile_id, _, _ in tile_infos
                 }
                 progress_state = (progress, task_ids, threading.Lock())
-                results = self._run_tile_evolutions(tile_infos, top_count, progress_state, capture_history)
+                results = self._run_tile_evolutions(
+                    tile_infos,
+                    top_count,
+                    progress_state,
+                    capture_history,
+                )
         else:
-            results = self._run_tile_evolutions(tile_infos, top_count, progress_state, capture_history)
+            results = self._run_tile_evolutions(
+                tile_infos,
+                top_count,
+                progress_state,
+                capture_history,
+            )
 
         outputs: list[np.ndarray] = []
         for image_index in range(top_count):
@@ -301,8 +342,10 @@ class Evolution:
                     continue
 
                 output[
-                    tile_result.rectangle.y : tile_result.rectangle.y + tile_result.rectangle.height,
-                    tile_result.rectangle.x : tile_result.rectangle.x + tile_result.rectangle.width,
+                    tile_result.rectangle.y : tile_result.rectangle.y
+                    + tile_result.rectangle.height,
+                    tile_result.rectangle.x : tile_result.rectangle.x
+                    + tile_result.rectangle.width,
                 ] = tile_result.evolved_images[image_index]
 
             outputs.append(output)
@@ -323,10 +366,13 @@ class Evolution:
                     if not history_frames:
                         continue
 
+                    # Keep each tile on its latest known frame while others continue.
                     source = history_frames[min(frame_index, len(history_frames) - 1)]
                     frame[
-                        tile_result.rectangle.y : tile_result.rectangle.y + tile_result.rectangle.height,
-                        tile_result.rectangle.x : tile_result.rectangle.x + tile_result.rectangle.width,
+                        tile_result.rectangle.y : tile_result.rectangle.y
+                        + tile_result.rectangle.height,
+                        tile_result.rectangle.x : tile_result.rectangle.x
+                        + tile_result.rectangle.width,
                     ] = source
 
                 animation_frames.append(frame)
@@ -337,7 +383,7 @@ class Evolution:
         self,
         tile_infos: list[tuple[int, Rectangle, np.ndarray]],
         top_count: int,
-        progress_state: tuple[Any, dict[int, int], LockType] | None,
+        progress_state: tuple[Any, dict[int, int], Any] | None,
         capture_history: bool,
     ) -> dict[int, TileEvolutionResult]:
         results: dict[int, TileEvolutionResult] = {}
@@ -369,14 +415,13 @@ class Evolution:
 
     def _build_generation_callback(
         self,
-        progress_state: tuple[Any, dict[int, int], LockType] | None,
+        progress_state: tuple[Any, dict[int, int], Any] | None,
         tile_id: int,
     ) -> Callable[[int], None]:
         if progress_state is None:
             return lambda _generation: None
 
         progress, task_ids, progress_lock = progress_state
-        progress = cast(Any, progress)
 
         def on_generation(_generation: int) -> None:
             with progress_lock:

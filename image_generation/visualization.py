@@ -21,8 +21,14 @@ def plot_fitness_evolution(
     figure, axis = plt.subplots(figsize=(width / 100.0, height / 100.0), dpi=100)
 
     for tile_id in range(tile_count):
-        generations = [statistics[tile_id][generation].generation for generation in range(generation_count)]
-        fitness = [statistics[tile_id][generation].average_fitness for generation in range(generation_count)]
+        generations = [
+            statistics[tile_id][generation].generation
+            for generation in range(generation_count)
+        ]
+        fitness = [
+            statistics[tile_id][generation].average_fitness
+            for generation in range(generation_count)
+        ]
         axis.plot(generations, fitness, linewidth=1, color="gray", alpha=0.15)
 
     mean_generations = list(range(generation_count))
@@ -31,7 +37,10 @@ def plot_fitness_evolution(
     max_fitness: list[float] = []
 
     for generation in range(generation_count):
-        generation_fitness = [statistics[tile_id][generation].average_fitness for tile_id in range(tile_count)]
+        generation_fitness = [
+            statistics[tile_id][generation].average_fitness
+            for tile_id in range(tile_count)
+        ]
         if not generation_fitness:
             mean_fitness.append(0.0)
             min_fitness.append(0.0)
