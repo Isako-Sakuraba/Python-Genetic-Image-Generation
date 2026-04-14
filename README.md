@@ -68,6 +68,18 @@ Enable statistics and chart:
 python -m image_generation -- -i munir.jpg -st true
 ```
 
+Render evolution as an animated GIF:
+
+```bash
+python -m image_generation -- -i munir.jpg -a
+```
+
+Render animation at 16 FPS:
+
+```bash
+python -m image_generation -- -i munir.jpg -a -as 16
+```
+
 ## CLI Arguments
 
 | Description | Argument | Default |
@@ -83,6 +95,8 @@ python -m image_generation -- -i munir.jpg -st true
 | Subdivision level | `-sl`, `--subdivision-level` | `3` |
 | Random seed | `-s`, `--seed` | `0` |
 | Statistics output | `-st`, `--statistics` | `false` |
+| Animated GIF output | `-a`, `--animated` | `false` |
+| Animation speed (FPS) | `-as`, `--animation-speed` | `12` |
 | Help | `-h`, `--help` | n/a |
 
 ## Before / After Example
@@ -99,7 +113,8 @@ Generated output (`output_0.jpg` from the <= 2 min profile):
 
 Each run writes:
 
-- `output/output_0.jpg` ... `output/output_4.jpg` - ranked image outputs
+- `output/output_0.jpg` ... `output/output_4.jpg` - ranked image outputs (default mode)
+- `output/output.gif` - animated mutation timeline when `-a` is enabled
 - `output/run_data.txt` - runtime and run configuration
 - `output/evo_data.txt` - evolution settings
 - `output/stat_data.txt` - tile/generation statistics

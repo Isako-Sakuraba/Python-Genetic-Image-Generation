@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from _thread import LockType
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 import math
 import os
 import random
 import threading
-from typing import Callable
+from typing import Any, Callable, cast
 
 import numpy as np
 
@@ -15,9 +16,9 @@ from .extensions import Color, next_color, remap
 from .quadtree import QuadTreeImage, Rectangle
 
 try:
-    from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+    import rich.progress as rich_progress
 except ImportError:  # pragma: no cover - optional dependency fallback
-    Progress = None
+    rich_progress = None
 
 
 WHEAT: Color = (245, 222, 179)
@@ -59,6 +60,14 @@ class MutationData:
     rectangle_index: int
     base_color: Color
     secondary_color: Color
+
+
+@dataclass(slots=True)
+class TileEvolutionResult:
+    rectangle: Rectangle
+    evolved_images: list[np.ndarray]
+    statistics: list[EvolutionStatistics]
+    history_frames: list[np.ndarray] | None = None
 
 
 class Evolution:
@@ -159,14 +168,33 @@ class Evolution:
 
         return quad_tree
 
-    def evolve(self, top_count: int = 5) -> list[np.ndarray]:
+    def _evolve_internal(
+        self,
+        top_count: int,
+        capture_history: bool,
+    ) -> tuple[list[np.ndarray], list[np.ndarray] | None]:
+        history: list[np.ndarray] | None = [] if capture_history else None
+        if history is not None:
+            history.append(self.elite_individual.image.copy())
+
         for generation_index in range(self.data.generations):
             self.create_new_population(generation_index)
             best = self.create_next_elite_individual()
             self.elite_individual = best
             self.on_generation_complete(generation_index + 1)
 
-        return self.create_top_individuals(top_count)
+            if history is not None:
+                history.append(self.elite_individual.image.copy())
+
+        return self.create_top_individuals(top_count), history
+
+    def evolve(self, top_count: int = 5) -> list[np.ndarray]:
+        images, _ = self._evolve_internal(top_count, capture_history=False)
+        return images
+
+    def evolve_with_history(self, top_count: int = 5) -> tuple[list[np.ndarray], list[np.ndarray]]:
+        images, history = self._evolve_internal(top_count, capture_history=True)
+        return images, history or []
 
     def create_top_individuals(self, count: int) -> list[np.ndarray]:
         self.population.sort(key=lambda mutation: mutation.fitness)
@@ -201,6 +229,24 @@ class Evolution:
         return images
 
     def evolve_async(self, quantization: int, top_count: int = 5, show_progress: bool = True) -> list[np.ndarray]:
+        outputs, _ = self._evolve_async_internal(quantization, top_count, show_progress, capture_history=False)
+        return outputs
+
+    def evolve_async_with_history(
+        self,
+        quantization: int,
+        top_count: int = 5,
+        show_progress: bool = True,
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
+        return self._evolve_async_internal(quantization, top_count, show_progress, capture_history=True)
+
+    def _evolve_async_internal(
+        self,
+        quantization: int,
+        top_count: int,
+        show_progress: bool,
+        capture_history: bool,
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         tiles_x = int(math.pow(2, quantization))
         tiles_y = tiles_x
         tile_width = self.original.shape[1] // tiles_x
@@ -225,15 +271,16 @@ class Evolution:
                 ].copy()
                 tile_infos.append((tile_id, rectangle, tile))
 
-        progress_state: tuple[Progress, dict[int, int], threading.Lock] | None = None
-        results: dict[int, tuple[Rectangle, list[np.ndarray]]]
+        progress_state: tuple[Any, dict[int, int], LockType] | None = None
+        results: dict[int, TileEvolutionResult]
 
-        if Progress is not None and show_progress:
-            with Progress(
-                TextColumn("{task.description}"),
-                BarColumn(),
-                TaskProgressColumn(),
-                SpinnerColumn(),
+        if rich_progress is not None and show_progress:
+            progress_module = rich_progress
+            with progress_module.Progress(
+                progress_module.TextColumn("{task.description}"),
+                progress_module.BarColumn(),
+                progress_module.TaskProgressColumn(),
+                progress_module.SpinnerColumn(),
                 transient=False,
             ) as progress:
                 task_ids = {
@@ -241,61 +288,95 @@ class Evolution:
                     for tile_id, _, _ in tile_infos
                 }
                 progress_state = (progress, task_ids, threading.Lock())
-                results = self._run_tile_evolutions(tile_infos, top_count, progress_state)
+                results = self._run_tile_evolutions(tile_infos, top_count, progress_state, capture_history)
         else:
-            results = self._run_tile_evolutions(tile_infos, top_count, progress_state)
+            results = self._run_tile_evolutions(tile_infos, top_count, progress_state, capture_history)
 
         outputs: list[np.ndarray] = []
         for image_index in range(top_count):
             output = np.zeros_like(self.original)
             for tile_id in range(len(tile_infos)):
-                rectangle, evolved_array = results[tile_id]
-                if image_index >= len(evolved_array):
+                tile_result = results[tile_id]
+                if image_index >= len(tile_result.evolved_images):
                     continue
 
                 output[
-                    rectangle.y : rectangle.y + rectangle.height,
-                    rectangle.x : rectangle.x + rectangle.width,
-                ] = evolved_array[image_index]
+                    tile_result.rectangle.y : tile_result.rectangle.y + tile_result.rectangle.height,
+                    tile_result.rectangle.x : tile_result.rectangle.x + tile_result.rectangle.width,
+                ] = tile_result.evolved_images[image_index]
 
             outputs.append(output)
 
-        return outputs
+        animation_frames: list[np.ndarray] = []
+        if capture_history:
+            frame_count = 0
+            for tile_result in results.values():
+                if tile_result.history_frames is None:
+                    continue
+                frame_count = max(frame_count, len(tile_result.history_frames))
+
+            for frame_index in range(frame_count):
+                frame = np.zeros_like(self.original)
+                for tile_id in range(len(tile_infos)):
+                    tile_result = results[tile_id]
+                    history_frames = tile_result.history_frames or []
+                    if not history_frames:
+                        continue
+
+                    source = history_frames[min(frame_index, len(history_frames) - 1)]
+                    frame[
+                        tile_result.rectangle.y : tile_result.rectangle.y + tile_result.rectangle.height,
+                        tile_result.rectangle.x : tile_result.rectangle.x + tile_result.rectangle.width,
+                    ] = source
+
+                animation_frames.append(frame)
+
+        return outputs, animation_frames
 
     def _run_tile_evolutions(
         self,
         tile_infos: list[tuple[int, Rectangle, np.ndarray]],
         top_count: int,
-        progress_state: tuple[Progress, dict[int, int], threading.Lock] | None,
-    ) -> dict[int, tuple[Rectangle, list[np.ndarray]]]:
-        results: dict[int, tuple[Rectangle, list[np.ndarray]]] = {}
+        progress_state: tuple[Any, dict[int, int], LockType] | None,
+        capture_history: bool,
+    ) -> dict[int, TileEvolutionResult]:
+        results: dict[int, TileEvolutionResult] = {}
 
         max_workers = max(1, min(len(tile_infos), os.cpu_count() or 1))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures: list[Future[tuple[int, Rectangle, list[np.ndarray], list[EvolutionStatistics]]]] = []
+            futures: list[Future[tuple[int, TileEvolutionResult]]] = []
 
             for tile_id, rectangle, tile in tile_infos:
                 callback = self._build_generation_callback(progress_state, tile_id)
                 futures.append(
-                    executor.submit(self._evolve_tile, tile_id, rectangle, tile, top_count, callback)
+                    executor.submit(
+                        self._evolve_tile,
+                        tile_id,
+                        rectangle,
+                        tile,
+                        top_count,
+                        callback,
+                        capture_history,
+                    )
                 )
 
             for future in as_completed(futures):
-                tile_id, rectangle, evolved, tile_statistics = future.result()
-                self.statistics[tile_id] = tile_statistics
-                results[tile_id] = (rectangle, evolved)
+                tile_id, tile_result = future.result()
+                self.statistics[tile_id] = tile_result.statistics
+                results[tile_id] = tile_result
 
         return results
 
     def _build_generation_callback(
         self,
-        progress_state: tuple[Progress, dict[int, int], threading.Lock] | None,
+        progress_state: tuple[Any, dict[int, int], LockType] | None,
         tile_id: int,
     ) -> Callable[[int], None]:
         if progress_state is None:
             return lambda _generation: None
 
         progress, task_ids, progress_lock = progress_state
+        progress = cast(Any, progress)
 
         def on_generation(_generation: int) -> None:
             with progress_lock:
@@ -310,8 +391,20 @@ class Evolution:
         tile: np.ndarray,
         top_count: int,
         callback: Callable[[int], None],
-    ) -> tuple[int, Rectangle, list[np.ndarray], list[EvolutionStatistics]]:
+        capture_history: bool,
+    ) -> tuple[int, TileEvolutionResult]:
         evolution = Evolution(tile, self.data, self.seed, tile_id)
         evolution.on_generation_complete = callback
-        evolved = evolution.evolve(top_count)
-        return tile_id, rectangle, evolved, list(evolution.statistics[0])
+        if capture_history:
+            evolved, history = evolution.evolve_with_history(top_count)
+        else:
+            evolved = evolution.evolve(top_count)
+            history = None
+
+        tile_result = TileEvolutionResult(
+            rectangle=rectangle,
+            evolved_images=evolved,
+            statistics=list(evolution.statistics[0]),
+            history_frames=history,
+        )
+        return tile_id, tile_result
