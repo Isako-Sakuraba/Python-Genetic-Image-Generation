@@ -38,9 +38,9 @@ class EvolutionStatistics:
 
 @dataclass(slots=True)
 class EvolutionData:
-    generations: int = 40
-    generation_size: int = 100
-    color_generations: int = 90
+    generations: int = 36
+    generation_size: int = 80
+    color_generations: int = 30
     crossover: int = 40
 
     def to_dict(self) -> dict[str, int]:

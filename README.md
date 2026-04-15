@@ -37,10 +37,10 @@ python -m pip install -r requirements.txt
 From the repository root:
 
 ```bash
-python -m image_generation -- -i munir.jpg
+python -m image_generation -- -i lady.jpg
 ```
 
-This uses defaults for all other arguments and expects `input/munir.jpg`.
+This uses defaults for all other arguments and expects `input/lady.jpg`.
 
 Show help:
 
@@ -53,31 +53,31 @@ python -m image_generation -- --help
 Default run:
 
 ```bash
-python -m image_generation -- -i munir.jpg
+python -m image_generation -- -i lady.jpg
 ```
 
-High quality profile (targeting <= 2 minutes on this project setup):
+Current quality profile (about 2 minutes on this project setup):
 
 ```bash
-python -m image_generation -- -i munir.jpg -o output -g 28 -ps 85 -c 36 -cg 20 -wr 512 -or 512 -sl 2 -s 0 -st false
+python -m image_generation -- -i lady.jpg -o output -g 36 -ps 80 -c 40 -cg 30 -wr 256 -or 512 -sl 2 -s 0 -st false
 ```
 
 Enable statistics and chart:
 
 ```bash
-python -m image_generation -- -i munir.jpg -st true
+python -m image_generation -- -i lady.jpg -st true
 ```
 
 Render evolution as an animated GIF:
 
 ```bash
-python -m image_generation -- -i munir.jpg -a
+python -m image_generation -- -i lady.jpg -a
 ```
 
 Render animation at 16 FPS:
 
 ```bash
-python -m image_generation -- -i munir.jpg -a -as 16
+python -m image_generation -- -i lady.jpg -a -as 16
 ```
 
 ## CLI Arguments
@@ -86,13 +86,13 @@ python -m image_generation -- -i munir.jpg -a -as 16
 |---|---|---|
 | Input filename | `-i`, `--input` | `input` |
 | Output folder | `-o`, `--output` | `output` |
-| Generations | `-g`, `--generations` | `40` |
-| Population size | `-ps`, `--population-size` | `120` |
-| Crossover size | `-c`, `--crossover` | `50` |
-| Color generations | `-cg`, `--color-generations` | `24` |
-| Working resolution | `-wr`, `--working-resolution` | `512` |
+| Generations | `-g`, `--generations` | `36` |
+| Population size | `-ps`, `--population-size` | `80` |
+| Crossover size | `-c`, `--crossover` | `40` |
+| Color generations | `-cg`, `--color-generations` | `30` |
+| Working resolution | `-wr`, `--working-resolution` | `256` |
 | Output resolution | `-or`, `--output-resolution` | `512` |
-| Subdivision level | `-sl`, `--subdivision-level` | `3` |
+| Subdivision level | `-sl`, `--subdivision-level` | `2` |
 | Random seed | `-s`, `--seed` | `0` |
 | Statistics output | `-st`, `--statistics` | `false` |
 | Animated GIF output | `-a`, `--animated` | `false` |
@@ -101,13 +101,13 @@ python -m image_generation -- -i munir.jpg -a -as 16
 
 ## Before / After Example
 
-Input (`munir.jpg`):
+Input (`lady.jpg`):
 
-![Before](examples/before_munir.jpg)
+![Before](examples/lady.jpg)
 
-Generated output (`output_0.jpg` from the <= 2 min profile):
+Generated output (`output_0.jpg` from the current profile):
 
-![After](examples/after_munir.jpg)
+![After](examples/output.jpg)
 
 ## Output Files
 
@@ -123,5 +123,5 @@ Each run writes:
 ## Notes
 
 - The `output/` folder is cleaned at the start of every run.
-- If you pass a bare filename like `munir.jpg`, the program resolves it as `input/munir.jpg`.
+- If you pass a bare filename like `lady.jpg`, the program resolves it as `input/lady.jpg`.
 - You can pass a direct path too, for example `-i ../somewhere/image.jpg`.
