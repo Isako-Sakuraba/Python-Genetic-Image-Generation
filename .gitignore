@@ -183,3 +183,11 @@ cython_debug/
 # Generated outputs
 output/*
 !output/.gitkeep
+
+# Local experiment/report artifacts
+experiment_runs/
+analysis.md
+analysis.pdf
+
+# Obsidian workspace
+.obsidian/

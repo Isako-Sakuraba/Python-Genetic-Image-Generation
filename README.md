@@ -1,8 +1,8 @@
-# Python Genetic Image Generation
+# Stylized Image Reconstruction Using Quadtree-Based Genetic Algorithm
 
-Generate stylized reconstructions of an input image with a quadtree-based genetic algorithm.
+This project reconstructs a target image using a quadtree-based genetic algorithm that mutates color regions, evaluates fitness against the source image, and keeps stronger candidates through selection and crossover. The optimization runs tile-by-tile in parallel to improve runtime while preserving local structure, and the CLI supports reproducible experiments through configurable parameters such as generations, population size, subdivision level, and output resolution.
 
-The program evolves images tile-by-tile in parallel and writes several ranked outputs (`output_0.jpg` to `output_4.jpg`).
+---
 
 ## How It Works
 
